@@ -401,9 +401,6 @@ export async function seedFirestoreIfEmpty(
       localStorage.setItem('books_em_firestore_seeded_v1', 'true');
     }
   } catch (err) {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('books_em_firestore_seeded_v1', 'true');
-    }
     if (isQuotaExceededError(err)) {
       console.warn('Firestore seeding check: cuota gratuita diaria de Firestore alcanzada; usando catálogo del servidor Express y local.');
     } else {

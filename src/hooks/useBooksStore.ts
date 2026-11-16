@@ -37,38 +37,36 @@ export const DEFAULT_CATALOGS: string[] = [
  * Automatically strips huge raw data:image base64 strings from client-side cache because
  * Firebase Firestore is the authoritative cloud database for full images.
  */
-function safeSaveToLocalStorage(key: string, value: unknown, stripBase64 = false): void {
+function safeSaveToLocalStorage(key: string, value: unknown): void {
   try {
-    let dataToStore = value;
-    if (stripBase64 && Array.isArray(value)) {
-      dataToStore = value.map((item) => {
-        if (typeof item === 'object' && item !== null) {
-          const b = item as Book;
-          const isCoverBase64 = typeof b.coverUrl === 'string' && b.coverUrl.startsWith('data:');
-          const cleanImages = Array.isArray(b.images)
-            ? b.images.filter((img) => typeof img === 'string' && !img.startsWith('data:'))
-            : [];
-          return {
-            ...b,
-            coverUrl: isCoverBase64 ? '' : b.coverUrl,
-            images: cleanImages,
-          };
-        }
-        return item;
-      });
-    } else if (stripBase64 && typeof value === 'object' && value !== null) {
-      const copy: Record<string, unknown> = { ...(value as Record<string, unknown>) };
-      if (typeof copy.selectedEditionsImage === 'string' && copy.selectedEditionsImage.startsWith('data:')) {
-        copy.selectedEditionsImage = '';
-      }
-      dataToStore = copy;
-    }
-
-    localStorage.setItem(key, JSON.stringify(dataToStore));
+    localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // If browser quota exceeded or storage choked, safely clean up cached key
+    // If browser localStorage quota is reached, safely strip huge base64 strings as fallback
     try {
-      localStorage.removeItem(key);
+      if (Array.isArray(value)) {
+        const lightweight = value.map((item) => {
+          if (typeof item === 'object' && item !== null) {
+            const b = item as Book;
+            const isCoverBase64 = typeof b.coverUrl === 'string' && b.coverUrl.startsWith('data:');
+            const cleanImages = Array.isArray(b.images)
+              ? b.images.filter((img) => typeof img === 'string' && !img.startsWith('data:'))
+              : [];
+            return {
+              ...b,
+              coverUrl: isCoverBase64 ? '' : b.coverUrl,
+              images: cleanImages,
+            };
+          }
+          return item;
+        });
+        localStorage.setItem(key, JSON.stringify(lightweight));
+      } else if (typeof value === 'object' && value !== null) {
+        const copy: Record<string, unknown> = { ...(value as Record<string, unknown>) };
+        if (typeof copy.selectedEditionsImage === 'string' && copy.selectedEditionsImage.startsWith('data:')) {
+          copy.selectedEditionsImage = '';
+        }
+        localStorage.setItem(key, JSON.stringify(copy));
+      }
     } catch {
       // ignore
     }
@@ -180,19 +178,19 @@ export function useBooksStore() {
 
   // Sync to localStorage safely without exceeding quota limits
   useEffect(() => {
-    safeSaveToLocalStorage(BOOKS_STORAGE_KEY, books, true);
+    safeSaveToLocalStorage(BOOKS_STORAGE_KEY, books);
   }, [books]);
 
   useEffect(() => {
-    safeSaveToLocalStorage(SETTINGS_STORAGE_KEY, settings, true);
+    safeSaveToLocalStorage(SETTINGS_STORAGE_KEY, settings);
   }, [settings]);
 
   useEffect(() => {
-    safeSaveToLocalStorage(WISHLIST_STORAGE_KEY, wishlistIds, false);
+    safeSaveToLocalStorage(WISHLIST_STORAGE_KEY, wishlistIds);
   }, [wishlistIds]);
 
   useEffect(() => {
-    safeSaveToLocalStorage(CATALOGS_STORAGE_KEY, catalogs, false);
+    safeSaveToLocalStorage(CATALOGS_STORAGE_KEY, catalogs);
   }, [catalogs]);
 
   useEffect(() => {
@@ -289,8 +287,12 @@ export function useBooksStore() {
     // 1. Instant Real-time listener for all books (adds, edits, status, deletions) across all devices
     const unsubBooks = subscribeToBooks(
       (firestoreBooks) => {
-        if (Array.isArray(firestoreBooks) && firestoreBooks.length > 0) {
-          setBooks(firestoreBooks);
+        if (Array.isArray(firestoreBooks)) {
+          if (firestoreBooks.length > 0) {
+            setBooks(firestoreBooks);
+          } else {
+            seedFirestoreIfEmpty(INITIAL_BOOKS, DEFAULT_STORE_SETTINGS, DEFAULT_CATALOGS);
+          }
         }
         setIsFirebaseConnected(true);
         setIsQuotaExceeded(false);
