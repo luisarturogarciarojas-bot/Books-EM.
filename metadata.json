@@ -1,0 +1,8 @@
+{
+  "name": "Remix Books EM",
+  "description": "Catálogo y librería online Books EM con compras por WhatsApp, visualización de tasas de cambio oficiales BCV y panel de administración.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        // In AI Studio iFrame container preview, HMR WebSocket is disabled.
+        // Mock the Vite HMR WebSocket so that @vite/client never triggers disconnected WebSocket errors.
+        if (typeof window !== 'undefined' && window.WebSocket) {
+          const OrigWebSocket = window.WebSocket;
+          const MockWebSocket = function(url, protocols) {
+            const isViteHmr = (typeof protocols === 'string' && protocols.includes('vite-hmr')) ||
+                              (Array.isArray(protocols) && protocols.some(function(p) { return typeof p === 'string' && p.includes('vite-hmr'); })) ||
+                              (typeof url === 'string' && (url.includes('vite-hmr') || url.includes('/@vite')));
+            if (isViteHmr) {
+              const target = new EventTarget();
+              const fakeWs = {
+                CONNECTING: 0,
+                OPEN: 1,
+                CLOSING: 2,
+                CLOSED: 3,
+                readyState: 1,
+                bufferedAmount: 0,
+                extensions: '',
+                protocol: 'vite-hmr',
+                binaryType: 'blob',
+                url: String(url),
+                send: function() {},
+                close: function() {},
+                addEventListener: function(type, listener, options) {
+                  target.addEventListener(type, listener, options);
+                },
+                removeEventListener: function(type, listener, options) {
+                  target.removeEventListener(type, listener, options);
+                },
+                dispatchEvent: function(event) {
+                  return target.dispatchEvent(event);
+                }
+              };
+              Object.defineProperty(fakeWs, 'onopen', {
+                set: function(fn) { target.addEventListener('open', fn); }
+              });
+              Object.defineProperty(fakeWs, 'onmessage', {
+                set: function(fn) { target.addEventListener('message', fn); }
+              });
+              Object.defineProperty(fakeWs, 'onerror', {
+                set: function(fn) { target.addEventListener('error', fn); }
+              });
+              Object.defineProperty(fakeWs, 'onclose', {
+                set: function(fn) { target.addEventListener('close', fn); }
+              });
+              return fakeWs;
+            }
+            return new OrigWebSocket(url, protocols);
+          };
+          MockWebSocket.prototype = OrigWebSocket.prototype;
+          MockWebSocket.CONNECTING = 0;
+          MockWebSocket.OPEN = 1;
+          MockWebSocket.CLOSING = 2;
+          MockWebSocket.CLOSED = 3;
+          window.WebSocket = MockWebSocket;
+        }
+
+        // Global safety net for any Vite/WebSocket error suppression
+        const isWsError = function(str) {
+          if (!str) return false;
+          if (typeof str === 'object') {
+            const msg = str.message || '';
+            const stack = str.stack || '';
+            return isWsError(msg) || isWsError(stack);
+          }
+          if (typeof str === 'string') {
+            return str.includes('WebSocket') || str.includes('[vite]') || str.includes('vite-hmr');
+          }
+          return false;
+        };
+
+        const origError = console.error;
+        console.error = function(...args) {
+          if (args.some(function(arg) { return isWsError(arg); })) {
+            return;
+          }
+          origError.apply(console, args);
+        };
+
+        const origWarn = console.warn;
+        console.warn = function(...args) {
+          if (args.some(function(arg) { return isWsError(arg); })) {
+            return;
+          }
+          origWarn.apply(console, args);
+        };
+
+        window.addEventListener('error', function(event) {
+          if (isWsError(event.message) || isWsError(event.error) || (event.filename && event.filename.includes('@vite/client'))) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(event) {
+          if (isWsError(event.reason)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+      })();
+    </script>
+    <title>Books EM</title>
+    <meta name="description" content="Catálogo y librería online Books EM con compras por WhatsApp, visualización de tasas de cambio oficiales BCV y panel de administración." />
+    <meta property="og:title" content="Books EM" />
+    <meta property="og:description" content="Catálogo y librería online Books EM con compras por WhatsApp, visualización de tasas de cambio oficiales BCV y panel de administración." />
+    <meta property="og:image" content="/books-em-logo.jpg" />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#EADBD9" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Books EM" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Cinzel:wght@500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#EADBD9] text-[#2C2420] antialiased selection:bg-[#DEC9C6] selection:text-[#3B2213]">
+    <div id="root">
+      <!-- Instant pre-React loading screen: Prevents any white flash or early store display before bundle loads -->
+      <div id="pre-app-loader" style="position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background-color:#EADBD9;color:#2C2420;font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;user-select:none;">
+        <div style="position:relative;display:flex;flex-direction:column;align-items:center;padding:28px 24px;border-radius:24px;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.65);box-shadow:0 16px 40px rgba(74,40,16,0.08);max-width:320px;width:88%;text-align:center;">
+          <div style="display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:999px;background:rgba(255,255,255,0.6);border:1px solid #DAC5C2;font-size:11px;font-weight:700;color:#5C3218;margin-bottom:20px;">
+            <span>✨ Librería & Colecciones Selectas</span>
+          </div>
+          <img src="/books-em-logo.jpg" alt="Books EM" style="width:110px;height:110px;border-radius:50%;object-fit:cover;box-shadow:0 8px 24px rgba(60,30,15,0.12);margin-bottom:14px;" />
+          <h1 style="font-family:'Newsreader',Georgia,serif;font-size:24px;font-weight:700;color:#3B2213;margin:0 0 4px 0;">Books EM</h1>
+          <p style="font-size:11px;color:#6B503D;margin:0 0 20px 0;font-style:italic;">Ediciones selectas, historias que inspiran y perduran</p>
+          <div style="width:180px;height:5px;background-color:#DAC5C2;border-radius:999px;overflow:hidden;position:relative;">
+            <div style="height:100%;background-color:#5C3218;border-radius:999px;animation:booksEmProgress 1.4s ease-in-out infinite alternate;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;width:180px;font-size:10px;color:#7A6455;font-weight:600;margin-top:8px;">
+            <span>Cargando catálogo</span>
+            <span style="color:#5C3218;">Books EM</span>
+          </div>
+        </div>
+        <style>
+          @keyframes booksEmProgress {
+            0% { transform: translateX(-35%); width: 35%; }
+            100% { transform: translateX(170%); width: 55%; }
+          }
+        </style>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

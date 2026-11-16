@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Books catalog collection: public read for all visitors, write for store admin
+    match /books/{bookId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Store settings document
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Catalogs & genres list
+    match /catalogs/{catalogId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

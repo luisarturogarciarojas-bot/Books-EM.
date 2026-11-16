@@ -1,0 +1,53 @@
+{
+  "entities": {
+    "books": {
+      "title": "Books",
+      "description": "Collection of published books in the catalog",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "genre": { "type": "string" },
+        "price": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string" },
+        "featured": { "type": "boolean" },
+        "coverUrl": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "synopsis": { "type": "string" },
+        "editorial": { "type": "string" },
+        "pages": { "type": "number" },
+        "publishedYear": { "type": "number" },
+        "isbn": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["title", "author", "price", "status"]
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Store contact and customization settings",
+      "type": "object",
+      "properties": {
+        "storeName": { "type": "string" },
+        "tagline": { "type": "string" },
+        "whatsappNumber": { "type": "string" },
+        "whatsappTemplate": { "type": "string" },
+        "currencySymbol": { "type": "string" },
+        "adminUsername": { "type": "string" },
+        "adminPassword": { "type": "string" },
+        "selectedEditionsImage": { "type": "string" }
+      },
+      "required": ["storeName", "whatsappNumber"]
+    },
+    "catalogs": {
+      "title": "Catalogs",
+      "description": "Available genres and category catalogs",
+      "type": "object",
+      "properties": {
+        "items": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["items"]
+    }
+  }
+}
