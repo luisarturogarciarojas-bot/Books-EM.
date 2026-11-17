@@ -48,13 +48,13 @@ export const BookCard: React.FC<BookCardProps> = ({
   const [isHovered, setIsHovered] = useState(false);
   const hasMultipleImages = imageList.length > 1;
 
-  // Rotate images every 5 seconds, paused when hovering to avoid jumping while reading
+  // Auto-cycle photos when user hovers over the book card to preview interior pages
   useEffect(() => {
-    if (!hasMultipleImages || isHovered) return;
+    if (!hasMultipleImages || !isHovered) return;
 
     const timer = setInterval(() => {
       setActiveImageIndex((prev) => (prev + 1) % imageList.length);
-    }, 5000);
+    }, 2800);
 
     return () => clearInterval(timer);
   }, [hasMultipleImages, imageList.length, isHovered]);
@@ -74,6 +74,8 @@ export const BookCard: React.FC<BookCardProps> = ({
     onToggleWishlist(book.id);
   };
 
+  const currentCover = imageList[activeImageIndex] || book.coverUrl || FALLBACK_BOOK_COVER;
+
   return (
     <div
       id={`book-card-${book.id}`}
@@ -82,26 +84,21 @@ export const BookCard: React.FC<BookCardProps> = ({
       onMouseLeave={() => setIsHovered(false)}
       className="group relative bg-[#FFFFFF] rounded-2xl border border-[#EAE2D5] hover:border-[#8C5E3C]/60 shadow-[0_2px_8px_rgba(74,44,23,0.04)] hover:shadow-[0_10px_26px_rgba(74,44,23,0.10)] transition-all duration-300 flex flex-col overflow-hidden cursor-pointer transform hover:-translate-y-1"
     >
-      {/* Cover Image Container with 5-Second Carousel */}
+      {/* Cover Image Container */}
       <div className="relative aspect-[3/4] w-full bg-[#F4EFEB] overflow-hidden">
-        {/* Layered images for silky smooth crossfade */}
-        {imageList.map((imgUrl, idx) => (
-          <img
-            key={`${imgUrl}-${idx}`}
-            src={imgUrl}
-            alt={`Foto ${idx + 1} de ${book.title}`}
-            referrerPolicy="no-referrer"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src = FALLBACK_BOOK_COVER;
-            }}
-            className={`absolute inset-0 w-full h-full object-cover object-center group-hover:scale-105 transition-all duration-700 ease-in-out ${
-              idx === activeImageIndex
-                ? 'opacity-100 scale-100 z-1'
-                : 'opacity-0 scale-98 pointer-events-none z-0'
-            }`}
-            loading={idx === 0 ? 'eager' : 'lazy'}
-          />
-        ))}
+        {/* Active image rendered with async decoding and fast transition */}
+        <img
+          key={currentCover}
+          src={currentCover}
+          alt={`Foto ${activeImageIndex + 1} de ${book.title}`}
+          referrerPolicy="no-referrer"
+          decoding="async"
+          loading="lazy"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = FALLBACK_BOOK_COVER;
+          }}
+          className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-105 transition-all duration-500 ease-out z-1"
+        />
 
         {/* Book spine overlay shadow effect for realistic book appearance */}
         <div className="absolute inset-y-0 left-0 w-2.5 sm:w-3 bg-gradient-to-r from-black/25 via-black/10 to-transparent pointer-events-none z-10" />

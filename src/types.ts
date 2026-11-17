@@ -19,6 +19,7 @@ export interface Book {
   publishedYear?: number;
   isbn?: string;
   createdAt: number;
+  updatedAt?: number;
 }
 
 export interface StoreSettings {
@@ -34,6 +35,7 @@ export interface StoreSettings {
   adminUsername: string;
   adminPassword: string;
   selectedEditionsImage?: string;
+  updatedAt?: number;
 }
 
 export type SortOption = 'featured' | 'price_asc' | 'price_desc' | 'title_asc' | 'recent';

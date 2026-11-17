@@ -94,6 +94,8 @@ function writeJsonFile<T>(filePath: string, data: T): void {
   }
 }
 
+const PERMANENT_BACKUP_FILE = path.join(DATA_DIR, 'books_permanent_backup.json');
+
 // Initialize files if they don't exist
 if (!fs.existsSync(BOOKS_FILE)) {
   writeJsonFile(BOOKS_FILE, INITIAL_BOOKS);
@@ -103,6 +105,18 @@ if (!fs.existsSync(SETTINGS_FILE)) {
 }
 if (!fs.existsSync(CATALOGS_FILE)) {
   writeJsonFile(CATALOGS_FILE, DEFAULT_CATALOGS);
+}
+
+// IMMUTABLE SAFEGUARD: Maintain non-volatile backup of books on disk
+try {
+  if (fs.existsSync(BOOKS_FILE)) {
+    const existing = readJsonFile<Book[]>(BOOKS_FILE, []);
+    if (existing && existing.length > 0) {
+      writeJsonFile(PERMANENT_BACKUP_FILE, existing);
+    }
+  }
+} catch {
+  // Best-effort
 }
 
 async function startServer() {
@@ -202,10 +216,15 @@ async function startServer() {
     const existingBook = existingIndex >= 0 ? books[existingIndex] : null;
 
     // Preserve existing images if not provided in update
+    // IMMUTABLE RULE: Any code or data update is strictly forbidden from wiping existing photos
+    const incomingFiltered = Array.isArray(updatedData.images)
+      ? updatedData.images.filter((img: unknown) => typeof img === 'string' && img.trim().length > 0)
+      : [];
+
     let images: string[];
-    if (Array.isArray(updatedData.images) && updatedData.images.length > 0) {
-      images = updatedData.images.filter(Boolean).map((img: string) => saveBase64Image(img, 'portada'));
-    } else if (updatedData.coverUrl) {
+    if (incomingFiltered.length > 0) {
+      images = incomingFiltered.map((img: string) => saveBase64Image(img, 'portada'));
+    } else if (updatedData.coverUrl && typeof updatedData.coverUrl === 'string' && updatedData.coverUrl.trim().length > 0) {
       images = [saveBase64Image(updatedData.coverUrl, 'portada')];
     } else if (existingBook && Array.isArray(existingBook.images) && existingBook.images.length > 0) {
       images = existingBook.images;

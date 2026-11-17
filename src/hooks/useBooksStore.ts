@@ -3,6 +3,7 @@ import { Book, BookStatus, StoreSettings } from '../types';
 import { INITIAL_BOOKS, DEFAULT_STORE_SETTINGS } from '../data/initialData';
 import { BcvRates, getStoredBcvRates, syncBcvRates } from '../services/bcvRates';
 import { FALLBACK_BOOK_COVER } from '../utils/helpers';
+import { idbGet, idbSet } from '../utils/indexedDb';
 import {
   subscribeToBooks,
   subscribeToSettings,
@@ -24,53 +25,65 @@ const ADMIN_SESSION_KEY = 'books_em_admin_session_v1';
 const CATALOGS_STORAGE_KEY = 'books_em_catalogs_v1';
 
 export const DEFAULT_CATALOGS: string[] = [
-  'Realismo Mágico',
+  'Fantasía y Aventura',
   'Desarrollo Personal',
-  'Misterio y Novela',
-  'Ciencia Ficción Distópica',
+  'Thriller y Suspenso',
+  'Ciencia Ficción',
   'Clásicos y Filosofía',
-  'Romance y Clásicos',
+  'Romance Juvenil',
+  'Accesorios literarios',
 ];
 
 /**
- * Safely persists cached items to browser localStorage without exceeding the 5MB browser quota.
- * Automatically strips huge raw data:image base64 strings from client-side cache because
- * Firebase Firestore is the authoritative cloud database for full images.
+ * Merges incoming books with existing books while strictly preserving loaded images.
+ * IMMUTABLE RULE: Code modifications and data synchronizations MUST NEVER delete or wipe out loaded book photos.
+ */
+export function mergeBooksProtectingImages(existingList: Book[], incomingList: Book[]): Book[] {
+  if (!Array.isArray(incomingList) || incomingList.length === 0) {
+    return existingList;
+  }
+  const existingMap = new Map<string, Book>();
+  for (const b of existingList) {
+    if (b && b.id) existingMap.set(b.id, b);
+  }
+
+  return incomingList.map((incoming) => {
+    const existing = existingMap.get(incoming.id);
+    if (!existing) return incoming;
+
+    // Preserve existing images if incoming payload somehow has empty images or blank cover
+    const existingImages = (Array.isArray(existing.images) && existing.images.length > 0)
+      ? existing.images.filter(Boolean)
+      : (existing.coverUrl ? [existing.coverUrl] : []);
+
+    const incomingImages = (Array.isArray(incoming.images) && incoming.images.length > 0)
+      ? incoming.images.filter(Boolean)
+      : (incoming.coverUrl ? [incoming.coverUrl] : []);
+
+    const protectedImages = incomingImages.length > 0 ? incomingImages : existingImages;
+    const protectedCover = incoming.coverUrl || protectedImages[0] || existing.coverUrl || FALLBACK_BOOK_COVER;
+
+    return {
+      ...existing,
+      ...incoming,
+      coverUrl: protectedCover,
+      images: protectedImages.length > 0 ? protectedImages : [protectedCover],
+    };
+  });
+}
+
+/**
+ * Persists data to both localStorage and IndexedDB.
+ * STRICT SAFEGUARD: Never strips or erases loaded book images under any circumstances.
  */
 function safeSaveToLocalStorage(key: string, value: unknown): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // If browser localStorage quota is reached, safely strip huge base64 strings as fallback
-    try {
-      if (Array.isArray(value)) {
-        const lightweight = value.map((item) => {
-          if (typeof item === 'object' && item !== null) {
-            const b = item as Book;
-            const isCoverBase64 = typeof b.coverUrl === 'string' && b.coverUrl.startsWith('data:');
-            const cleanImages = Array.isArray(b.images)
-              ? b.images.filter((img) => typeof img === 'string' && !img.startsWith('data:'))
-              : [];
-            return {
-              ...b,
-              coverUrl: isCoverBase64 ? '' : b.coverUrl,
-              images: cleanImages,
-            };
-          }
-          return item;
-        });
-        localStorage.setItem(key, JSON.stringify(lightweight));
-      } else if (typeof value === 'object' && value !== null) {
-        const copy: Record<string, unknown> = { ...(value as Record<string, unknown>) };
-        if (typeof copy.selectedEditionsImage === 'string' && copy.selectedEditionsImage.startsWith('data:')) {
-          copy.selectedEditionsImage = '';
-        }
-        localStorage.setItem(key, JSON.stringify(copy));
-      }
-    } catch {
-      // ignore
-    }
+  } catch (err) {
+    console.warn(`[Storage] localStorage quota reached for key "${key}", backed up to IndexedDB:`, err);
   }
+  // Dual-tier non-volatile storage: IndexedDB has no 5MB limit and persists permanently
+  idbSet(key, value).catch(() => {});
 }
 
 export function useBooksStore() {
@@ -220,6 +233,32 @@ export function useBooksStore() {
   // Server API Sync Functions
   const isSyncingRef = useRef(false);
 
+  // 0. Immediate client-side IndexedDB hydration for lightning 0ms initial paint with all images
+  useEffect(() => {
+    let isMounted = true;
+    idbGet<Book[]>(BOOKS_STORAGE_KEY).then((cachedBooks) => {
+      if (isMounted && Array.isArray(cachedBooks) && cachedBooks.length > 0) {
+        setBooks((current) => mergeBooksProtectingImages(current, cachedBooks));
+      }
+    }).catch(() => {});
+
+    idbGet<StoreSettings>(SETTINGS_STORAGE_KEY).then((cachedSettings) => {
+      if (isMounted && cachedSettings && cachedSettings.storeName) {
+        setSettings((prev) => ({ ...prev, ...cachedSettings }));
+      }
+    }).catch(() => {});
+
+    idbGet<string[]>(CATALOGS_STORAGE_KEY).then((cachedCatalogs) => {
+      if (isMounted && Array.isArray(cachedCatalogs) && cachedCatalogs.length > 0) {
+        setCatalogs(cachedCatalogs);
+      }
+    }).catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const fetchServerBooks = useCallback(async () => {
     if (isSyncingRef.current) return;
     try {
@@ -228,10 +267,7 @@ export function useBooksStore() {
       if (res.ok) {
         const serverBooks = await res.json();
         if (Array.isArray(serverBooks) && serverBooks.length > 0) {
-          setBooks((prev) => {
-            // Adopt server books if different or if server has books
-            return serverBooks;
-          });
+          setBooks((prev) => mergeBooksProtectingImages(prev, serverBooks));
         }
       }
     } catch {
@@ -289,7 +325,7 @@ export function useBooksStore() {
       (firestoreBooks) => {
         if (Array.isArray(firestoreBooks)) {
           if (firestoreBooks.length > 0) {
-            setBooks(firestoreBooks);
+            setBooks((prev) => mergeBooksProtectingImages(prev, firestoreBooks));
           } else {
             seedFirestoreIfEmpty(INITIAL_BOOKS, DEFAULT_STORE_SETTINGS, DEFAULT_CATALOGS);
           }
@@ -389,23 +425,33 @@ export function useBooksStore() {
   };
 
   const updateBook = (updated: Book): Book => {
-    const rawImages = Array.isArray(updated.images) && updated.images.length > 0
+    const existingBook = books.find((b) => b.id === updated.id);
+    const existingImages = (Array.isArray(existingBook?.images) && existingBook.images.length > 0)
+      ? existingBook.images.filter(Boolean)
+      : (existingBook?.coverUrl ? [existingBook.coverUrl] : []);
+
+    const incomingImages = Array.isArray(updated.images) && updated.images.length > 0
       ? updated.images.filter(Boolean)
       : (updated.coverUrl ? [updated.coverUrl] : []);
-    const coverUrl = rawImages[0] || updated.coverUrl || '';
+
+    // IMMUTABLE IMAGE PRESERVATION:
+    // If updated payload has empty images or blank cover, STRICTLY preserve the existing book photos!
+    const finalImages = incomingImages.length > 0 ? incomingImages : existingImages;
+    const coverUrl = finalImages[0] || updated.coverUrl || existingBook?.coverUrl || '';
 
     const sanitizedBook: Book = {
+      ...(existingBook || {}),
       ...updated,
       coverUrl,
-      images: rawImages.length > 0 ? rawImages : (coverUrl ? [coverUrl] : []),
+      images: finalImages.length > 0 ? finalImages : (coverUrl ? [coverUrl] : []),
       price: Number(updated.price) || 0,
       currency: updated.currency || 'USD',
       status: updated.status || 'disponible',
       featured: Boolean(updated.featured),
-      editorial: updated.editorial || '',
-      pages: updated.pages ? Number(updated.pages) : undefined,
-      publishedYear: updated.publishedYear ? Number(updated.publishedYear) : undefined,
-      isbn: updated.isbn || '',
+      editorial: updated.editorial !== undefined ? updated.editorial : (existingBook?.editorial || ''),
+      pages: updated.pages !== undefined ? (Number(updated.pages) || undefined) : existingBook?.pages,
+      publishedYear: updated.publishedYear !== undefined ? (Number(updated.publishedYear) || undefined) : existingBook?.publishedYear,
+      isbn: updated.isbn !== undefined ? updated.isbn : (existingBook?.isbn || ''),
     };
 
     // Optimistic UI update
@@ -667,7 +713,7 @@ export function useBooksStore() {
   const importCatalog = (importedBooks: Book[]) => {
     if (Array.isArray(importedBooks) && importedBooks.length > 0) {
       setBooks(importedBooks);
-      safeSaveToLocalStorage(BOOKS_STORAGE_KEY, importedBooks, true);
+      safeSaveToLocalStorage(BOOKS_STORAGE_KEY, importedBooks);
       // Sync each or bulk to server
       importedBooks.forEach((book) => {
         fetch(`/api/books/${encodeURIComponent(book.id)}`, {

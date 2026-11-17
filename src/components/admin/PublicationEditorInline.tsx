@@ -273,8 +273,13 @@ export const PublicationEditorInline: React.FC<PublicationEditorInlineProps> = (
       return;
     }
 
-    const finalImages = images.length > 0 ? images.filter(Boolean) : [FALLBACK_BOOK_COVER];
-    const finalCover = finalImages[0] || FALLBACK_BOOK_COVER;
+    const existingImgs = (Array.isArray(bookToEdit?.images) && bookToEdit.images.length > 0)
+      ? bookToEdit.images.filter(Boolean)
+      : (bookToEdit?.coverUrl ? [bookToEdit.coverUrl] : []);
+    const finalImages = images.length > 0
+      ? images.filter(Boolean)
+      : (existingImgs.length > 0 ? existingImgs : [FALLBACK_BOOK_COVER]);
+    const finalCover = finalImages[0] || bookToEdit?.coverUrl || FALLBACK_BOOK_COVER;
 
     onSave(
       {

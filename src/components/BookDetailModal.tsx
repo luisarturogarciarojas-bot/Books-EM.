@@ -144,6 +144,7 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                   src={imgUrl}
                   alt={`${book.title} - Foto ${idx + 1}`}
                   referrerPolicy="no-referrer"
+                  decoding="async"
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).src = FALLBACK_BOOK_COVER;
                   }}

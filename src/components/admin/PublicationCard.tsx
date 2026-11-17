@@ -1,7 +1,7 @@
 import React from 'react';
 import { Edit3, Star, Trash2, CheckCircle, Clock, AlertCircle, TrendingUp } from 'lucide-react';
 import { Book, BookStatus, CurrencyCode } from '../../types';
-import { formatPrice, getStatusDetails } from '../../utils/helpers';
+import { formatPrice, getStatusDetails, FALLBACK_BOOK_COVER } from '../../utils/helpers';
 import { BcvRates, calculateBcvBreakdown } from '../../services/bcvRates';
 
 interface PublicationCardProps {
@@ -68,11 +68,15 @@ export const PublicationCard: React.FC<PublicationCardProps> = ({
         {/* Cover Thumbnail */}
         <div className="relative w-24 sm:w-28 shrink-0 aspect-[2/3] rounded-xl overflow-hidden bg-[#EFE8DF] shadow-xs border border-[#E8DFD0]">
           <img
-            src={book.coverUrl}
+            src={book.coverUrl || FALLBACK_BOOK_COVER}
             alt={book.title}
             referrerPolicy="no-referrer"
+            decoding="async"
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = FALLBACK_BOOK_COVER;
+            }}
           />
 
           {/* Quick Featured Badge */}

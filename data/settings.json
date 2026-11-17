@@ -1,0 +1,15 @@
+{
+  "tagline": "Un espacio pensado para quienes viven cada página con el corazón 🤎☕. Seleccionamos títulos que despiertan la imaginación, enriquecen el pensamiento crítico y acompañan tus momentos de lectura.",
+  "updatedAt": 1794852658196,
+  "whatsappTemplate": "¡Hola! ✨ Me interesa adquirir el libro [escribe aquí el título y autor]. ¿Tienen disponibilidad y cómo sería el método de pago y envío? ¡Gracias! 🤎📚",
+  "storeName": "Books EM",
+  "selectedEditionsImage": "/uploads/selected_editions.webp",
+  "whatsappNumber": "584143270613",
+  "defaultCurrency": "USD",
+  "paymentMethods": "Pago Móvil, Transferencia Bancaria (Banesco, Mercantil, BDV), Zelle, Efectivo en divisas ($ y €) y PayPal",
+  "contactEmail": "booksem22@gmail.com",
+  "storeLocation": "Valencia / Naguanagua (Envíos a todo el país)",
+  "currencySymbol": "€",
+  "adminUsername": "dylan123456",
+  "adminPassword": "12345678"
+}

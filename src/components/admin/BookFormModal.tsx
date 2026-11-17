@@ -112,7 +112,10 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
       return;
     }
 
-    const finalCover = coverUrl.trim() || PRESET_COVER_SUGGESTIONS[0].url;
+    const finalCover = coverUrl.trim() || bookToEdit?.coverUrl || PRESET_COVER_SUGGESTIONS[0].url;
+    const finalImages = (bookToEdit && Array.isArray(bookToEdit.images) && bookToEdit.images.length > 0)
+      ? bookToEdit.images
+      : [finalCover];
 
     onSave(
       {
@@ -123,6 +126,7 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
         status,
         featured,
         coverUrl: finalCover,
+        images: finalImages,
         synopsis: synopsis.trim(),
         editorial: editorial.trim() || undefined,
         pages: pages ? Number(pages) : undefined,

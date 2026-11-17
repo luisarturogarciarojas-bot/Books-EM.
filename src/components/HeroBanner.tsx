@@ -163,6 +163,11 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
                     alt="Ediciones Selectas - Libros y Café"
                     className="w-full h-full object-cover object-center transform hover:scale-105 transition-transform duration-700"
                     referrerPolicy="no-referrer"
+                    decoding="async"
+                    loading="eager"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = DEFAULT_SELECTED_EDITIONS_IMAGE;
+                    }}
                   />
                   {/* Subtle warm tint overlay */}
                   <div className="absolute inset-0 bg-[#5C3218]/10 mix-blend-multiply pointer-events-none" />
